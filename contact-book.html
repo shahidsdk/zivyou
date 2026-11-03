@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#43A047">
+<title>Contact Book</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 100 100%27%3E%3Ctext y=%27.9em%27 font-size=%2790%27%3E%F0%9F%93%92%3C/text%3E%3C/svg%3E">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<link rel="stylesheet" href="css/style.css">
+<link rel="stylesheet" href="css/theme.css">
+<link rel="stylesheet" href="css/leave.css">
+</head>
+<body>
+<div id="pinOverlay" style="position:fixed; inset:0; z-index:99999; background:#F4F6FA; display:flex; align-items:center; justify-content:center; padding:20px;">
+  <div style="background:#fff; border-radius:14px; box-shadow:0 8px 30px rgba(0,0,0,0.12); padding:28px 26px; width:100%; max-width:340px; text-align:center; font-family:inherit;">
+    <div style="font-size:34px; margin-bottom:6px;">🔒</div>
+    <div style="font-weight:800; font-size:17px; color:#22262E; margin-bottom:4px;">Contact Book</div>
+    <div style="font-size:12.5px; color:#8A94A3; margin-bottom:16px;">Enter PIN to continue</div>
+    <input id="pinInput" type="password" autocomplete="off" placeholder="PIN" style="width:100%; box-sizing:border-box; padding:11px 12px; font-size:16px; text-align:center; letter-spacing:3px; border:1px solid #D9DEE7; border-radius:8px; margin-bottom:10px;" onkeydown="if(event.key==='Enter') submitPin()">
+    <div id="pinMsg" style="min-height:18px; font-size:12.5px; font-weight:700; color:#E0374B; margin-bottom:8px;"></div>
+    <button class="btn btn-purple" style="width:100%;" onclick="submitPin()">Unlock</button>
+  </div>
+</div>
+<script>try{ if(localStorage.getItem('crbPin')) document.getElementById('pinOverlay').style.display='none'; }catch(e){}</script>
+
+<div class="navbar">
+  <div class="left">
+    <img class="nav-logo" id="navLogo" alt="Rescue 1122">
+    <div class="nav-title"><span class="nt-main">Contact Management System</span><span class="nt-sub">Rescue 1122 · Rahim Yar Khan</span></div>
+  </div>
+  <div class="right">
+    <button class="pill pill-settings" id="manageBtn" title="Manage Departments / Designations / Tehsils" onclick="toggleManageDrawer()"><i class="ic" data-ic="settings" data-size="20"></i></button>
+    <button class="pill" id="darkModeBtn" title="Toggle Dark Mode" onclick="toggleDarkMode()"><i class="ic" data-ic="moon" data-size="20"></i></button>
+    <button class="pill pill-sync" id="syncBtn" title="Link Excel File" onclick="toggleSyncPanel()"><i class="ic" data-ic="refresh" data-size="20"></i><span class="sync-dot" id="syncDot"></span></button>
+    <button class="pill pill-birthday" id="bdayBtn" title="Upcoming Birthdays" onclick="toggleBdayPanel()"><i class="ic" data-ic="gift" data-size="20"></i><span class="pill-count" id="bdayCount" style="display:none;">0</span></button>
+    <span class="nav-user"><span class="av">SJ</span><span>Shahid Jamil</span></span>
+  </div>
+
+  <div class="dropdown-panel" id="bdayPanel" style="width:340px; max-height:70vh; overflow-y:auto;">
+    <div class="dp-head">Upcoming Birthdays (next 2 days)</div>
+    <div id="bdayList"></div>
+  </div>
+  <div class="dropdown-panel" id="syncPanel" style="width:320px;">
+    <div class="dp-head">Excel File Sync</div>
+    <div style="padding:14px 16px; font-size:12.5px; color:#3A4A5B; line-height:1.6;">
+      Link an Excel file once — every change auto-saves to it, and this browser will remember it next time (no need to re-link). (Chrome/Edge only)
+      <div id="syncStatusText" style="margin-top:8px; font-weight:700; color:#8A94A3;">Not linked</div>
+      <div id="lastSyncText" style="margin-top:4px; font-size:11.5px; color:#8A94A3;">Last saved: —</div>
+      <div style="display:flex; gap:8px; margin-top:12px;">
+        <button class="btn btn-purple" style="flex:1;" onclick="linkExcelFile()">Link File</button>
+        <button class="btn btn-outline" style="flex:1;" onclick="unlinkExcelFile()">Unlink</button>
+      </div>
+      <button class="btn btn-outline" style="width:100%; margin-top:8px;" onclick="toggleSyncPanel(); openBackupsModal();"><i class="ic" data-ic="clock" data-size="15"></i>View Backups</button>
+      <div style="border-top:1px solid #F0F2F5; margin-top:12px; padding-top:12px;">
+        <div style="font-weight:800; font-size:12.5px; color:#22262E; margin-bottom:4px;"><i class="ic" data-ic="cloud" data-size="16"></i> Google Sheet Sync (any device, any browser)</div>
+        <div style="font-size:11.5px; color:#8A94A3; margin-bottom:8px;">Paste your Google Apps Script Web App URL once — after that every change here saves to the Google Sheet automatically, and changes made in the Sheet appear here too.</div>
+        <div id="cloudStatusText" style="font-weight:700; color:#8A94A3;">Not linked</div>
+        <div id="cloudSyncText" style="margin-top:2px; font-size:11.5px; color:#8A94A3;">Last cloud sync: —</div>
+        <div style="display:flex; gap:8px; margin-top:10px;">
+          <button class="btn btn-purple" style="flex:1;" onclick="connectGoogleSheet()">Connect</button>
+          <button class="btn btn-outline" style="flex:1;" onclick="disconnectGoogleSheet()">Disconnect</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="ticker-wrap" id="tickerWrap">
+  <div class="ticker-track" id="tickerTrack"></div>
+</div>
+
+<div class="resume-banner" id="resumeBanner">
+  <span class="rb-text"></span>
+  <div class="rb-btns">
+    <button class="rb-btn">🔗 Resume Sync</button>
+    <button class="rb-dismiss" onclick="document.getElementById('resumeBanner').classList.remove('show')">✕</button>
+  </div>
+</div>
+
+<div class="filterbar">
+  <div class="search-wrap"><i class="ic" data-ic="search"></i><input id="searchBox" placeholder="Search by name, phone, department, tehsil..."></div>
+  <select id="deptFilter"><option value="">Department / All</option></select>
+  <select id="tehsilFilter"><option value="">Tehsil / All</option></select>
+  <button class="btn btn-outline" onclick="triggerImport()"><i class="ic" data-ic="upload"></i>Import</button>
+  <button class="btn btn-outline" onclick="exportExcel()"><i class="ic" data-ic="download"></i>Export</button>
+  <button class="btn btn-outline" id="dupBtn" onclick="openDuplicatesModal()"><i class="ic" data-ic="alert"></i>Duplicates</button>
+  <button class="btn btn-outline" onclick="openHealthCheckModal()"><i class="ic" data-ic="pulse"></i>Health Check</button>
+  <button class="btn btn-primary" onclick="openAddModal()"><i class="ic" data-ic="plus"></i>Add Contact</button>
+  <input type="file" id="importFileInput" accept=".csv,.xlsx,.xls" style="display:none;" onchange="handleImportFile(event)">
+</div>
+
+<div class="content">
+
+  <div class="stat-grid" id="statGrid">
+    <div class="stat-card">
+      <div class="head"><span class="title"><span class="ic-badge"><i class="ic" data-ic="users"></i></span>Contacts</span><span class="val green" id="statContacts">0</span></div>
+      <div class="quad">
+        <div><div class="n blue" id="statGroups">0</div><div class="l">Groups</div></div>
+        <div><div class="n orange" id="statDepts">0</div><div class="l">Departments</div></div>
+      </div>
+    </div>
+    <div class="stat-card">
+      <div class="head"><span class="title"><span class="ic-badge"><i class="ic" data-ic="phone"></i></span>Phone Numbers</span><span class="val blue" id="statNumbers">0</span></div>
+      <div class="quad">
+        <div><div class="n green" id="statPrimary">0</div><div class="l">Primary</div></div>
+        <div><div class="n purple" id="statExtra">0</div><div class="l">Extra Numbers</div></div>
+      </div>
+    </div>
+    <div class="stat-card">
+      <div class="head"><span class="title"><span class="ic-badge"><i class="ic" data-ic="gift"></i></span>Birthdays</span><span class="val orange" id="statUpcoming">0</span></div>
+      <div class="quad">
+        <div><div class="n orange" id="statUpcoming2">0</div><div class="l">Next 2 days</div></div>
+        <div><div class="n red" id="statToday">0</div><div class="l">Today</div></div>
+      </div>
+    </div>
+    <div class="stat-card">
+      <div class="head"><span class="title"><span class="ic-badge"><i class="ic" data-ic="calendar"></i></span>This Month — Duty/Leave</span><span class="val purple" id="statMonthTotal">0</span></div>
+      <div class="quad">
+        <div style="cursor:pointer;" onclick="openMonthSummaryDetail('Short Leave')"><div class="n orange" id="statMonthShortLeave">0</div><div class="l">Short Leave</div></div>
+        <div style="cursor:pointer;" onclick="openMonthSummaryDetail('Duty Change')"><div class="n purple" id="statMonthDutyChange">0</div><div class="l">Duty Change</div></div>
+      </div>
+      <div class="quad" style="margin-top:8px;">
+        <div style="cursor:pointer;" onclick="openMonthSummaryDetail('Day Off Change')"><div class="n blue" id="statMonthDayOff">0</div><div class="l">Day Off Change</div></div>
+        <div style="cursor:pointer;" onclick="openMonthSummaryDetail('Special Event')"><div class="n teal" id="statMonthSpecial">0</div><div class="l">Special Event</div></div>
+      </div>
+      <button class="btn btn-outline" style="width:100%; margin-top:10px; padding:7px; font-size:12px;" onclick="generateMonthlyReportPDF()"><i class="ic" data-ic="file-text" data-size="15"></i>Generate Monthly Report (PDF)</button>
+    </div>
+  </div>
+
+  <div class="section-label tile-keep" id="groupsLabel"><i class="ic" data-ic="users"></i>Groups — click to filter</div>
+  <div class="tiles tile-keep" id="groupTiles"></div>
+
+  <div class="section-label tile-keep" id="bloodLabel"><i class="ic" data-ic="droplet"></i>Blood Groups — click to filter</div>
+  <div class="blood-tiles tile-keep" id="bloodTiles"></div>
+
+  <div class="section-label"><i class="ic" data-ic="clipboard-check"></i>Duty &amp; Leave Events — click to add</div>
+  <div class="event-tiles" id="eventTiles"></div>
+
+  <div class="panel" id="recentEventsPanel" style="margin-bottom:16px;">
+    <div class="panel-head"><span>Recent Duty / Leave Events</span><span class="count" id="recentEventsCount">0 records</span></div>
+    <div id="recentEventsBody"></div>
+  </div>
+
+  <div class="filter-banner" id="filterBanner" style="display:none;">
+    <span id="filterBannerText"></span>
+    <button class="clear" onclick="clearAllFilters()"><i class="ic" data-ic="x" data-size="14"></i> Clear Filter</button>
+  </div>
+
+  <div class="panel" id="contactsPanel">
+    <div class="panel-head">
+      <span>Contacts</span>
+      <div style="display:flex; align-items:center; gap:10px;">
+        <button class="bulk-del-btn" id="bulkEditBtn" style="display:none; background:#EFF3FF; color:#3B7DED; border:1px solid #C9D8FB;" onclick="openBulkEditModal()"><i class="ic" data-ic="edit" data-size="14"></i> Edit Selected (<span id="bulkEditCount">0</span>)</button>
+        <button class="bulk-del-btn" id="bulkDelBtn" style="display:none;" onclick="deleteSelectedContacts()"><i class="ic" data-ic="trash" data-size="14"></i> Delete Selected (<span id="bulkDelCount">0</span>)</button>
+        <button class="btn btn-outline" id="viewAllBtn" style="padding:7px 12px; font-size:12px;" onclick="toggleShowAllContacts()"><i class="ic" data-ic="list" data-size="15"></i>View All Contacts</button>
+        <button class="btn btn-outline" style="padding:7px 12px; font-size:12px;" onclick="printContactsList()"><i class="ic" data-ic="printer" data-size="15"></i>Print</button>
+        <span class="count" id="tableCount">0 people</span>
+      </div>
+    </div>
+    <table class="contacts-table">
+      <thead>
+        <tr><th style="width:30px;"><input type="checkbox" class="head-check" id="headCheck" onchange="toggleSelectAllContacts(this.checked)"></th><th>Name</th><th>Designation / Dept</th><th>Numbers</th><th>Blood</th><th>Tehsil</th><th>Group</th><th></th></tr>
+      </thead>
+      <tbody id="contactsTableBody"></tbody>
+    </table>
+  </div>
+
+</div>
+
+<footer>
+  All rights reserved by <b>Shahid Jamil</b>
+</footer>
+
+
+<div class="toast" id="toast"></div>
+<div id="monthlyReportPrintArea"></div>
+
+<!-- Modules: every file below is a classic script sharing one global scope, loaded in this order.
+     "-markup.js" files add each module's pop-up HTML; init.js must stay last. -->
+<script src="js/contacts/contacts-markup.js"></script>
+<script src="js/data/data-markup.js"></script>
+<script src="js/events/events-markup.js"></script>
+<script src="js/leave/leave-markup.js"></script>
+<script src="js/leave/leave-page-markup.js"></script>
+<script src="js/dayoff/dayoff-markup.js"></script>
+<script src="js/core/core-markup.js"></script>
+<script src="js/messages/messages-markup.js"></script>
+<script src="js/proforma/proforma-markup.js"></script>
+<script src="js/core/state.js"></script>
+<script src="js/core/logo.js"></script>
+<script src="js/core/utils.js"></script>
+<script src="js/core/icons.js"></script>
+<script src="js/core/ui.js"></script>
+<script src="js/core/storage.js"></script>
+<script src="js/core/password.js"></script>
+<script src="js/contacts/contacts-list.js"></script>
+<script src="js/contacts/contacts-filters.js"></script>
+<script src="js/contacts/contacts-bulk.js"></script>
+<script src="js/contacts/contact-detail.js"></script>
+<script src="js/contacts/contact-form.js"></script>
+<script src="js/contacts/contact-tools.js"></script>
+<script src="js/contacts/manage-lists.js"></script>
+<script src="js/messages/messages.js"></script>
+<script src="js/proforma/proforma.js"></script>
+<script src="js/events/events-ui.js"></script>
+<script src="js/events/emp-combo.js"></script>
+<script src="js/events/events-form.js"></script>
+<script src="js/events/record-search.js"></script>
+<script src="js/events/reports-monthly.js"></script>
+<script src="js/leave/leave-rules.js"></script>
+<script src="js/leave/leave-page.js"></script>
+<script src="js/leave/leave-upload.js"></script>
+<script src="js/leave/leave-summary.js"></script>
+<script src="js/leave/leave-batches.js"></script>
+<script src="js/leave/leave-reports.js"></script>
+<script src="js/dayoff/dayoff-upload.js"></script>
+<script src="js/dayoff/dayoff-summary.js"></script>
+<script src="js/dayoff/dayoff-reports.js"></script>
+<script src="js/dayoff/dayoff-batches.js"></script>
+<script src="js/data/excel-export.js"></script>
+<script src="js/data/excel-import.js"></script>
+<script src="js/data/file-link.js"></script>
+<script src="js/data/idb.js"></script>
+<script src="js/data/backups.js"></script>
+<script src="js/data/file-sync.js"></script>
+<script src="js/data/cloud-sync.js"></script>
+<script src="js/init.js"></script>
+</body>
+</html>
